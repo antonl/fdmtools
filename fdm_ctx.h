@@ -20,6 +20,12 @@ using namespace arma;
 typedef pair<double, double> range;
 typedef pair<unsigned int, unsigned int> dims; 
 
+// TODO: look into using asm and stuff to calculate powers of e
+// efficiently. See Graillat, "Accurate Floating Point Product and Exponentiation"
+
+typedef struct { double a, b;} s_split;
+inline s_split split(double a);
+
 class fdm_ctx {
     public:
         explicit fdm_ctx(cx_double *signal, unsigned int n_count, range freqs, 
@@ -28,26 +34,34 @@ class fdm_ctx {
         explicit fdm_ctx(cx_double *signal, unsigned int n_count, cx_double *zj,
             unsigned int basis_count) throw (runtime_error);
 
+        fdm_ctx() = delete; // No default constructor
+
         void reduce_dimension(double threshold);
         void solve();
 
         cx_mat U0, U1, U2;
-        cx_vec zj_inv, zj_M; // cache
+        cx_vec zj_inv, zj_invM; // cache
         unsigned int J;
 
-        ~fdm_ctx() {cout << "context destroyed" << endl;}
+        cx_vec wj, dk;
+        cx_vec alpha, beta;
+        cx_mat Bk;
+
+       ~fdm_ctx() {}
 
         cx_vec signal, zj;
     private:
-        fdm_ctx() = default;
 
         range freq_limits;
 
         inline void generate_cache(unsigned int M);
 
-        inline cx_double f_p(unsigned int j, unsigned int M, unsigned int p);
-        inline cx_double g_p(unsigned int j, unsigned int M, unsigned int p);
-        inline cx_double gen_diagonal(unsigned int j, unsigned int M);
+        template <int p> inline cx_double f(unsigned int j, unsigned int M);
+        template <int p> inline cx_double g(unsigned int j, unsigned int M);
+        template <int p> inline cx_double gen_diagonal(unsigned int j, 
+            unsigned int M);
+        
+        void filter_frequencies();
 
         void generate_U();
 };

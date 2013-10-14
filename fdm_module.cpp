@@ -7,13 +7,13 @@ using namespace Py;
 inline Object fdm_module::create_ctx(cx_double *signal, unsigned int n_count,
         cx_double *zj, unsigned int basis_count) {
     fdm_ctx *ctx = new fdm_ctx(signal, n_count, zj, basis_count);
-    return asObject(PyCapsule_New(ctx, "fdm_ctx", delete_ctx));
+    return fdm2pyobj(ctx);
 }
 
 inline Object fdm_module::create_ctx(cx_double *signal, unsigned int n_count,
         range freqs, unsigned int basis_count) {
     fdm_ctx *ctx = new fdm_ctx(signal, n_count, freqs, basis_count);
-    return asObject(PyCapsule_New(ctx, "fdm_ctx", delete_ctx));
+    return fdm2pyobj(ctx);
 }
 
 void fdm_module::delete_ctx(PyObject *obj) {
@@ -27,5 +27,9 @@ inline fdm_ctx *fdm_module::pyobj2fdm(Object ctx) {
         throw ValueError("invalid context");
     
     return static_cast<fdm_ctx *>(PyCapsule_GetPointer(ctx.ptr(), "fdm_ctx"));
+}
+
+inline Object fdm_module::fdm2pyobj(fdm_ctx *ctx) {
+    return asObject(PyCapsule_New(ctx, "fdm_ctx", delete_ctx));
 }
 

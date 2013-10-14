@@ -12,7 +12,7 @@ defs = np.array([ # in units 1/s
 # Search for modes within frequencies freq in Hz
 dt = 0.01
 
-n = np.arange(20)
+n = np.arange(100)
 
 a_noise, p_noise =  np.random.random_sample(n.shape), \
     2*np.pi*np.random.random_sample(n.shape)
@@ -22,7 +22,7 @@ cn = sig + a_noise*np.exp(1j*p_noise)
 
 
 # canonical frequency will be positive, range 0 to 2 pi
-fmin, fmax = 10,15 
+fmin, fmax = 20,40 
 
 diff = fmax - fmin
 rho = cn.shape[0]*dt/2
@@ -39,6 +39,8 @@ z_j = np.exp(-1j*w_j*dt)
 ctx = fdm.make_ctx(cn, z_j)
 
 print ctx
+
+print fdm.get_U_mats(ctx)
 
 fdm.reduce_dimension(ctx, 0.1)
 

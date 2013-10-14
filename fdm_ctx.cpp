@@ -41,11 +41,10 @@ inline void fdm_ctx::generate_cache(unsigned int M)
         }
 
         for(int i = 0; i < zj.n_elem; ++i) {
-            zj_M[i] = pow(zj[i], M);
+            zj_M[i] = pow(zj_inv[i], M);
         }
 
         //cout << "completed generating cache" << endl;
-
         //cout << "zj_inv" << endl << zj_inv << endl;
         //cout << "zj_M" << endl << zj_M << endl;
     }
@@ -150,4 +149,13 @@ void fdm_ctx::reduce_dimension(double threshold) {
 
     cout << "singular values: " << endl << s << endl;
     cout << "found " << i << " value above threshold " << threshold << endl;
+
+    // XXX: here's where I left off. 
+    J = i;
+    // update J, reduce dimensionality of U0-U2
+}
+
+void fdm_ctx::solve() {
+    // XXX: run NGEP code
+    // find dk and uk
 }

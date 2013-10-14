@@ -29,21 +29,19 @@ class fdm_ctx {
             unsigned int basis_count) throw (runtime_error);
 
         void reduce_dimension(double threshold);
+        void solve();
 
-        ~fdm_ctx() {
-            cout << "context destroyed" << endl;
-        }
+        cx_mat U0, U1, U2;
+        cx_vec zj_inv, zj_M; // cache
+        unsigned int J;
+
+        ~fdm_ctx() {cout << "context destroyed" << endl;}
 
         cx_vec signal, zj;
     private:
-        fdm_ctx(){};
+        fdm_ctx() = default;
 
         range freq_limits;
-        unsigned int J;
-
-        cx_mat U0, U1, U2;
-
-        cx_vec zj_inv, zj_M; // cache
 
         inline void generate_cache(unsigned int M);
 

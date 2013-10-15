@@ -37,22 +37,22 @@ class fdm_ctx {
         fdm_ctx() = delete; // No default constructor
 
         void reduce_dimension(double threshold);
-        void solve();
 
-        cx_mat U0, U1, U2;
-        cx_vec zj_inv, zj_invM; // cache
-        unsigned int J;
-
-        cx_vec wj, dk;
-        cx_vec alpha, beta;
-        cx_mat Bk;
+        void solve() {
+            find_eigenvectors(U0, 1e-1);
+        }
 
        ~fdm_ctx() {}
+        int J;
 
-        cx_vec signal, zj;
     private:
+        cx_vec signal, zj;
+        cx_vec zj_inv, zj_invM; // cache
+        cx_mat U0, U1, U2;
 
         range freq_limits;
+
+        pair<cx_vec, cx_mat> find_eigenvectors(cx_mat X, double threshold = 1e-5);
 
         inline void generate_cache(unsigned int M);
 
@@ -60,9 +60,10 @@ class fdm_ctx {
         template <int p> inline cx_double g(unsigned int j, unsigned int M);
         template <int p> inline cx_double gen_diagonal(unsigned int j, 
             unsigned int M);
+        void generate_U();
         
         void filter_frequencies();
 
-        void generate_U();
+
 };
 #endif

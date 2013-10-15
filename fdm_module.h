@@ -139,6 +139,7 @@ class fdm_module : public ExtensionModule<fdm_module> {
         Object get_U_mats(const Tuple& args) {
             fdm_ctx *ctx = pyobj2fdm(args[0]);
             try {
+                /*
                 Object U0 = asObject(PyBuffer_FromMemory(ctx->U0.memptr(), 
                     sizeof(cx_double)*ctx->U0.n_elem));
                 Object U1 = asObject(PyBuffer_FromMemory(ctx->U1.memptr(), 
@@ -162,13 +163,17 @@ class fdm_module : public ExtensionModule<fdm_module> {
                     sizeof(cx_double)*ctx->alpha.n_elem));
                 Object beta = asObject(PyBuffer_FromMemory(ctx->beta.memptr(), 
                     sizeof(cx_double)*ctx->beta.n_elem));
-
+                */
                 Dict res;
+
+                /*
                 res["U0"] = U0;
                 res["U1"] = U1;
                 res["U2"] = U2;
+                */
                 res["J"] = Int(int(ctx->J));
 
+                /*
                 res["zj_inv"] = zj_inv;
                 res["zj_invM"] = zj_invM;
 
@@ -178,6 +183,8 @@ class fdm_module : public ExtensionModule<fdm_module> {
                 res["Bk"] = Bk;
                 res["alpha"] = alpha;
                 res["beta"] = beta;
+                */
+
                 return res;
 
             } catch (runtime_error &e) {

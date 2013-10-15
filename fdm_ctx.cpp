@@ -213,20 +213,43 @@ void fdm_ctx::reduce_dimension(double threshold) {
     U2 = S*U.submat(r, span::all)*U2*Vt.submat(span::all, r)*S;
 }
 
-void fdm_ctx::solve_zggev() {
+pair<cx_vec, cx_mat> fdm_ctx::find_eigenvectors(cx_mat X, double threshold) {
     // XXX: run NGEP code
 
-    cx_mat A = U1; cx_mat B = U0;
-    alpha.resize(J), beta.resize(J);
-    Bk.resize(J,J);
+    cx_mat A = X; // copy of U0
+    cx_mat V(J,J); // eigenvectors
+    cx_vec lambda(J); // eigenvalues
 
-    int err = LAPACKE_zggev(CblasColMajor, 'N', 'V', J, A.memptr(), J, 
-        B.memptr(), J, alpha.memptr(), beta.memptr(), 0, J, Bk.memptr(), J);
+    int err = LAPACKE_zgeev(CblasColMajor, 'N', 'V', J, A.memptr(), J, 
+        lambda.memptr(), 0, J, V.memptr(), J);
 
     if(err != 0) {
         stringstream s;
-        s << "lapacke: zggev returned " << err << endl;
+        s << "lapacke: zgeev returned " << err << endl;
         throw runtime_error(s.str());
     }
+
+    double m = 0;
+    for(auto i = lambda.begin(); i < lambda.end(); ++i) 
+        if(m < abs(*i)) m = abs(*i);
+
+    // find and remove vectors that are singular
+    while(true) {
+        vec s_lambda = abs(lambda)/m;
+        uvec idx = find(s_lambda < threshold, 1); // return 1st match
+        if(idx.n_elem == 0) break;
+
+        V.shed_col(idx[0]); 
+        s_lambda.shed_row(idx[0]);
+        lambda.shed_row(idx[0]);
+        J -= 1;
+    }
+
+    // rescale each for symmetric norm
+    for(int i = 0; i < V.n_cols; ++i) {
+        V.col(i) *= 1./sqrt(lambda[i]);
+    }
+
+    return pair<cx_vec, cx_mat>(lambda, V);
 }
 

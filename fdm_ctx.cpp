@@ -136,7 +136,7 @@ template <int p> inline cx_double fdm_ctx::gen_diagonal(unsigned int j,
 
 void fdm_ctx::generate_U() 
     {
-        unsigned int M = floor(J - 2.)/2; 
+        unsigned int M = floor(signal.n_elem - 2.)/2; 
 
         generate_cache(M);
 
@@ -156,10 +156,10 @@ void fdm_ctx::generate_U()
 
         for(int i = 0; i < J; ++i) {
             for(int j = 0; j <= i; ++j) {
-                if(i == j) U1(i, i) = gen_diagonal<0>(i, M);
+                if(i == j) U1(i, i) = gen_diagonal<1>(i, M);
                 else {
-                    U1(i,j)= (zj[i]*f<1>(j, M) - zj[j]*f<1>(i, M) - 
-                        zj_invM[j]*g<1>(i, M) + zj_invM[i]*g<1>(j, M)) / 
+                    U1(i,j) = (zj[i]*f<1>(j, M) - zj[j]*f<1>(i, M) - 
+                        zj_invM[i]*g<1>(j, M) + zj_invM[j]*g<1>(i, M)) / 
                         (zj[i] - zj[j]);
                     U1(j, i) = U1(i, j);
                 }
@@ -171,7 +171,7 @@ void fdm_ctx::generate_U()
                 if(i == j) U2(i, i) = gen_diagonal<2>(i, M);
                 else {
                     U2(i,j) = (zj[i]*f<2>(j, M) - zj[j]*f<2>(i, M) - 
-                        zj_invM[j]*g<2>(i, M) + zj_invM[i]*g<2>(j, M)) / 
+                        zj_invM[i]*g<2>(j, M) + zj_invM[j]*g<2>(i, M)) / 
                         (zj[i] - zj[j]);
                     U2(j, i) = U2(i, j);
                 }
@@ -213,7 +213,7 @@ void fdm_ctx::reduce_dimension(double threshold) {
     U2 = S*U.submat(r, span::all)*U2*Vt.submat(span::all, r)*S;
 }
 
-void fdm_ctx::solve() {
+void fdm_ctx::solve_zggev() {
     // XXX: run NGEP code
 
     cx_mat A = U1; cx_mat B = U0;
@@ -229,3 +229,4 @@ void fdm_ctx::solve() {
         throw runtime_error(s.str());
     }
 }
+

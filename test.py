@@ -40,9 +40,5 @@ ctx = fdm.make_ctx(cn, z_j)
 
 print ctx
 
-print fdm.get_U_mats(ctx)
-
-fdm.reduce_dimension(ctx, 0.1)
-
 print "done"
 

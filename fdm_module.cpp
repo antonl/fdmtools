@@ -7,6 +7,7 @@ using namespace Py;
 inline Object fdm_module::create_ctx(cx_double *signal, unsigned int n_count,
         cx_double *zj, unsigned int basis_count) {
     fdm_ctx *ctx = new fdm_ctx(signal, n_count, zj, basis_count);
+    cout << "creating ctx" << endl;
     return fdm2pyobj(ctx);
 }
 
@@ -19,6 +20,7 @@ inline Object fdm_module::create_ctx(cx_double *signal, unsigned int n_count,
 void fdm_module::delete_ctx(PyObject *obj) {
     fdm_ctx *ctx = reinterpret_cast<fdm_ctx *>(PyCapsule_GetPointer(obj,
             "fdm_ctx"));
+    cout << "deleting ctx" << endl;
     delete ctx;
 }
 

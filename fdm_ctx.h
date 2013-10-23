@@ -19,7 +19,7 @@ using namespace arma;
 
 typedef pair<double, double> range;
 typedef pair<unsigned int, unsigned int> dims; 
-
+typedef pair<cx_vec, cx_mat> eigpair;
 // TODO: look into using asm and stuff to calculate powers of e
 // efficiently. See Graillat, "Accurate Floating Point Product and Exponentiation"
 
@@ -38,11 +38,13 @@ class fdm_ctx {
 
         void reduce_dimension(double threshold);
 
-        void solve() {
-            find_eigenvectors(U0, 1e-1);
+        void solve(double threshold) {
+            solution = solve_once(threshold);
         }
 
-       ~fdm_ctx() {}
+        ~fdm_ctx() {}
+        
+        eigpair solution;
         int J;
 
     private:
@@ -52,7 +54,8 @@ class fdm_ctx {
 
         range freq_limits;
 
-        pair<cx_vec, cx_mat> find_eigenvectors(cx_mat X, double threshold = 1e-5);
+        eigpair solve_once(double threshold = 1e-5);
+        eigpair find_eigenvectors(cx_mat X, double threshold);
 
         inline void generate_cache(unsigned int M);
 
@@ -63,7 +66,5 @@ class fdm_ctx {
         void generate_U();
         
         void filter_frequencies();
-
-
 };
 #endif

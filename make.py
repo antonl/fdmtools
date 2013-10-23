@@ -17,7 +17,7 @@ setup(
     url = "", 
     ext_modules = [
         Extension('_fdm',
-            define_macros= [('USE_THREAD', 0)],
+            define_macros= [('USE_THREAD', 0), ('ARMA_EXTRA_DEBUG', 1)],
             sources = [
                 'fdm_ctx.cpp',
                 'fdm_module.cpp', 

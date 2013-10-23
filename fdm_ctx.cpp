@@ -214,9 +214,7 @@ void fdm_ctx::reduce_dimension(double threshold) {
 }
 
 pair<cx_vec, cx_mat> fdm_ctx::find_eigenvectors(cx_mat X, double threshold) {
-    // XXX: run NGEP code
-
-    cx_mat A = X; // copy of U0
+    cx_mat A(X); // copy of U0
     cx_mat V(J,J); // eigenvectors
     cx_vec lambda(J); // eigenvalues
 
@@ -242,6 +240,7 @@ pair<cx_vec, cx_mat> fdm_ctx::find_eigenvectors(cx_mat X, double threshold) {
         V.shed_col(idx[0]); 
         s_lambda.shed_row(idx[0]);
         lambda.shed_row(idx[0]);
+        //cout << "lambda" << endl << lambda << endl;
         J -= 1;
     }
 
@@ -250,6 +249,23 @@ pair<cx_vec, cx_mat> fdm_ctx::find_eigenvectors(cx_mat X, double threshold) {
         V.col(i) *= 1./sqrt(lambda[i]);
     }
 
-    return pair<cx_vec, cx_mat>(lambda, V);
+    eigpair ret(lambda, V); 
+    cout << "Values: " << lambda.memptr() << " " << ret.first.memptr() << endl;
+
+    return ret;
+}
+
+eigpair fdm_ctx::solve_once(double threshold) {
+    eigpair vp = find_eigenvectors(U0, threshold);
+    cx_vec lambda0 = vp.first; cx_mat V0 = vp.second;
+
+    cx_mat H1 = V0*U1*V0.st();
+    eigpair res = find_eigenvectors(H1, threshold);
+
+    cout << "found " << res.first.n_elem << " eigenvals " << endl; 
+    cout << res.first << endl;
+
+    cx_mat B = res.second * V0;
+    return eigpair(res.first, B);
 }
 

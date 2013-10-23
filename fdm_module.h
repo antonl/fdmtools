@@ -127,8 +127,16 @@ class fdm_module : public ExtensionModule<fdm_module> {
         Object solve(const Tuple& args) {
             fdm_ctx *ctx = pyobj2fdm(args[0]);
             try {
-                ctx->solve();
-                return args[0];
+                Float thresh = args[1];
+                ctx->solve(thresh);
+
+                Object vals = asObject(PyBuffer_FromMemory(ctx->solution.first
+                    .memptr(), sizeof(cx_double)*ctx->solution.first.n_elem));
+                Object vecs = asObject(PyBuffer_FromMemory(ctx->solution.second
+                    .memptr(), sizeof(cx_double)*ctx->solution.second.n_elem));
+
+                //return TupleN(vals, vecs, Int(ctx->J));
+                return vals;
             } catch (runtime_error &e) {
                 throw RuntimeError(e.what());
             } catch (Exception &e) {

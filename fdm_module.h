@@ -25,7 +25,7 @@ class cx_buf : public PythonExtension<cx_buf> {
             shape[0] = obj.n_rows;
             shape[1] = obj.n_cols;
 
-            buf.obj = new_reference_to(this);
+            buf.obj = asObject(this);
             buf.buf = self.memptr();
             buf.len = self.n_elem * sizeof(cx_double);
             buf.readonly = 0;

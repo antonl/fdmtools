@@ -218,6 +218,7 @@ pair<cx_vec, cx_mat> fdm_ctx::find_eigenvectors(cx_mat X, double threshold) {
     cx_mat V(J,J); // eigenvectors
     cx_vec lambda(J); // eigenvalues
 
+    cout << " current J " << J << endl;
     int err = LAPACKE_zgeev(CblasColMajor, 'N', 'V', J, A.memptr(), J, 
         lambda.memptr(), 0, J, V.memptr(), J);
 
@@ -240,7 +241,7 @@ pair<cx_vec, cx_mat> fdm_ctx::find_eigenvectors(cx_mat X, double threshold) {
         V.shed_col(idx[0]); 
         s_lambda.shed_row(idx[0]);
         lambda.shed_row(idx[0]);
-        //cout << "lambda" << endl << lambda << endl;
+        cout << "removed an eigenvalue" << endl;
         J -= 1;
     }
 
@@ -263,9 +264,8 @@ eigpair fdm_ctx::solve_once(double threshold) {
     eigpair res = find_eigenvectors(H1, threshold);
 
     cout << "found " << res.first.n_elem << " eigenvals " << endl; 
-    cout << res.first << endl;
-
     cx_mat B = res.second * V0;
+    cout << "B dim " << B.n_cols << ", " << B.n_rows << endl; 
     return eigpair(res.first, B);
 }
 

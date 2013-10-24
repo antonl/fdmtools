@@ -18,50 +18,89 @@ using namespace arma;
 typedef std::pair<unsigned int, unsigned int> dims;
 typedef std::pair<double, double> range;
 
-class cx_buffer : public PythonExtension<cx_buffer> {
+class cx_buf : public PythonExtension<cx_buf> {
     public:
-        cx_buffer(Object obj) {
-            if (PyObject_GetBuffer(obj.ptr(), &self, PyBUF_F_CONTIGUOUS) == -1) {
-                throw ValueError("unable to obtain F contiguous buffer");
-            }
+        explicit cx_buf(cx_mat &obj): self(obj) {
+            cout << ">> New cx_buf" << endl;
+            shape[0] = obj.n_rows;
+            shape[1] = obj.n_cols;
+
+            buf.obj = new_reference_to(this);
+            buf.buf = self.memptr();
+            buf.len = self.n_elem * sizeof(cx_double);
+            buf.readonly = 0;
+            buf.itemsize = sizeof(cx_double);
+            buf.ndim = 2;
+            buf.format = "<dd";
+            buf.shape = shape;
+            buf.strides = strides;
+
+            PyBuffer_FillContiguousStrides(buf.ndim, shape, strides, 
+                buf.itemsize, 'F');
         }
 
-        virtual ~cx_buffer() {
-            PyBuffer_Release(&self);
-        }
-
-        cx_double *ptr() {
-            return reinterpret_cast<cx_double *>(self.buf);
+        virtual ~cx_buf() {
+            cout << "<< Destroyed cx_buf" << endl;
         }
 
         virtual Object repr() {
+            cout << "running repr" << endl;
             stringstream my_repr;
-            my_repr << "<buffer (" << self.itemsize*8 <<  ")"  << " of "
-                << self.len << " bytes>" << endl;
+            my_repr << "<cx_buf @" << hex <<  this << " size " << dec 
+                << self.n_rows << "x" << self.n_cols << " containing "
+                << self.n_elem <<  " elements>"  << endl;
             return String(my_repr.str());
         }
 
-        unsigned int len() { return self.len/self.itemsize; };
-        unsigned int itemsize() { return self.itemsize; };
+        /*
+        virtual Py_ssize_t buffer_getreadbuffer(Py_ssize_t segment, void** ptrptr ) {
+            if(segment != 0) throw ValueError("no such segment");
+            *ptrptr = self.memptr();
+            return self.n_elem*sizeof(cx_double);
+        }
 
-        static void init_type(){ behaviors().supportRepr(); }
+        virtual Py_ssize_t buffer_getsegcount(Py_ssize_t* lenp) {
+            if(lenp != NULL) {
+                *lenp = self.n_elem * sizeof(cx_double);
+                cout << "Lenp is " << *lenp << endl;
+            }
+            return 1;
+        }
+        */
+
+        virtual int buffer_get(Py_buffer *buf, int flags) {
+            if(!(flags & PyBUF_F_CONTIGUOUS))
+                throw ValueError("can only return Fortran-style matrix");
+
+            cout << ">> get buffer" << endl;
+            *buf = this->buf;
+            return 0;
+        }
+
+        virtual void buffer_release(Py_buffer *buf) {
+            cout << "<< release buffer" << endl;
+        }
+
+        static void init_type(){ 
+            behaviors().supportRepr();
+            behaviors().supportBufferType();
+        }
     private:
-        Py_buffer self;
+        cx_mat self;
+        Py_buffer buf;
+        Py_ssize_t shape[2], strides[2];
 };
 
 class fdm_module : public ExtensionModule<fdm_module> {
     public: 
-        fdm_module(): ExtensionModule<fdm_module>("_fdm"), 
-            numpy(PyImport_ImportModule("numpy")) 
+        fdm_module(): ExtensionModule<fdm_module>("_fdm")
         {
-            cx_buffer::init_type();
+            cx_buf::init_type();
 
-            add_varargs_method("test_numpy", &fdm_module::test_numpy, 
-                    "create U matrix");
+            add_varargs_method("make_buffer", &fdm_module::make_buffer,
+                    "create a buffer");
             add_varargs_method("make_ctx", &fdm_module::make_ctx, 
                     "generate U matrix");
-            add_varargs_method("make_buffer", &fdm_module::make_buffer, 
-                    "make cx buffer");
             add_varargs_method("reduce_dimension", &fdm_module::reduce_dimension, 
                     "reduce dimension");
             add_varargs_method("get_U_mats", &fdm_module::get_U_mats, 
@@ -71,46 +110,47 @@ class fdm_module : public ExtensionModule<fdm_module> {
             initialize("I contain things");
         }
 
-        //Object generate_U(const Tuple&);
-        Object test_numpy(const Tuple& a) {
-            Callable zeros;
-            zeros = numpy.getAttr("zeros");
-            Object ans = zeros.apply(TupleN(TupleN(Int(3), Int(3)), 
-                String("complex256")));
-            return ans;
-        }
-
         Object make_ctx(const Tuple& args) {
+            Py_buffer sig, zj;
             try {
-                cx_buffer sig_buf(args[0]);
+                
+                if(PyObject_GetBuffer(args[0].ptr(), &sig, PyBUF_F_CONTIGUOUS < 0))
+                    throw TypeError("unable to get signal buffer");
+
+                if(PyObject_GetBuffer(args[1].ptr(), &zj, PyBUF_F_CONTIGUOUS < 0))
+                    throw TypeError("unable to get basis buffer");
 
                 if(args.size() == 2) {
-                    cx_buffer zj_buf(args[1]);
-                    return create_ctx(sig_buf.ptr(), sig_buf.len(), 
-                        zj_buf.ptr(), zj_buf.len());
-                } else if (args.size() == 3) {
-                    Tuple r(args[1]);
-                    Int J(args[2]);
-                    Float fmin = r.getItem(0);
-                    Float fmax = r.getItem(1);
-                    range freqs(fmin, fmax);
-                    return create_ctx(sig_buf.ptr(), sig_buf.len(), freqs, J);
+                    // Memory from the buffer must be copied upon creation
+                    Object ctx = create_ctx(
+                        reinterpret_cast<cx_double *>(sig.buf), 
+                        sig.len/sig.itemsize, 
+                        reinterpret_cast<cx_double *>(zj.buf), 
+                        zj.len/zj.itemsize);
+
+                    PyBuffer_Release(&sig);
+                    PyBuffer_Release(&zj);
+
+                    return ctx;
                 } else
                     throw TypeError("two or three arguments required");
 
             } catch (Exception &e) { 
+                PyBuffer_Release(&sig);
+                PyBuffer_Release(&zj);
                 return None();
             }
         }
 
         Object make_buffer(const Tuple& args) {
-            try {
-                cx_buffer *buf = new cx_buffer(args[0]);
-                return asObject(buf);
-            } catch (Exception &e) {
-                return None();
-            }
+            Py_buffer thing;
+            if(PyObject_GetBuffer(args[0].ptr(), &thing, PyBUF_F_CONTIGUOUS) < 0)
+                throw TypeError("unable to get thing buffer");
+            cx_mat thing_2(reinterpret_cast<cx_double *>(thing.buf), thing.shape[0], thing.shape[1]);
+            cx_mat res = thing_2 - ones<cx_mat>(thing.shape[0], thing.shape[1]);
+            return asObject(new cx_buf(res));
         }
+
 
         Object reduce_dimension(const Tuple& args) {
             fdm_ctx *ctx = pyobj2fdm(args[0]);
@@ -129,14 +169,8 @@ class fdm_module : public ExtensionModule<fdm_module> {
             try {
                 Float thresh = args[1];
                 ctx->solve(thresh);
-
-                Object vals = asObject(PyBuffer_FromMemory(ctx->solution.first
-                    .memptr(), sizeof(cx_double)*ctx->solution.first.n_elem));
-                Object vecs = asObject(PyBuffer_FromMemory(ctx->solution.second
-                    .memptr(), sizeof(cx_double)*ctx->solution.second.n_elem));
-
-                //return TupleN(vals, vecs, Int(ctx->J));
-                return vals;
+                return TupleN(asObject(new cx_buf(ctx->solution.first)), 
+                    asObject(new cx_buf(ctx->solution.second)), Int(ctx->J));
             } catch (runtime_error &e) {
                 throw RuntimeError(e.what());
             } catch (Exception &e) {
@@ -205,9 +239,6 @@ class fdm_module : public ExtensionModule<fdm_module> {
         static void delete_ctx(PyObject *obj);
 
     private:
-        Module numpy;
-        Callable array; // Contains numpy.array() function
-
         inline Object create_ctx(cx_double *signal, unsigned int n_count,
                 cx_double *zj, unsigned int basis_count);
         inline Object create_ctx(cx_double *signal, unsigned int n_count,

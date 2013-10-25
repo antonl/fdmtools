@@ -20,18 +20,19 @@ typedef std::pair<double, double> range;
 
 class cx_buf : public PythonExtension<cx_buf> {
     public:
-        explicit cx_buf(cx_mat &obj): self(obj) {
-            cout << ">> New cx_buf" << endl;
+        explicit cx_buf(cx_mat &obj): my_mat(obj) {
+//            cout << ">> New cx_buf" << endl;
+
             shape[0] = obj.n_rows;
             shape[1] = obj.n_cols;
 
-            buf.obj = asObject(this);
-            buf.buf = self.memptr();
-            buf.len = self.n_elem * sizeof(cx_double);
+            buf.obj = this->selfPtr();
+            buf.buf = my_mat.memptr();
+            buf.len = my_mat.n_elem * sizeof(cx_double);
             buf.readonly = 0;
             buf.itemsize = sizeof(cx_double);
             buf.ndim = 2;
-            buf.format = "<dd";
+            buf.format = "<dd"; // Have to make this const somehow...
             buf.shape = shape;
             buf.strides = strides;
 
@@ -40,28 +41,31 @@ class cx_buf : public PythonExtension<cx_buf> {
         }
 
         virtual ~cx_buf() {
-            cout << "<< Destroyed cx_buf" << endl;
+            //cout << "<< Destroyed cx_buf" << endl;
         }
 
         virtual Object repr() {
-            cout << "running repr" << endl;
+            //cout << "running repr" << endl;
             stringstream my_repr;
             my_repr << "<cx_buf @" << hex <<  this << " size " << dec 
-                << self.n_rows << "x" << self.n_cols << " containing "
-                << self.n_elem <<  " elements>"  << endl;
+                << my_mat.n_rows << "x" << my_mat.n_cols << " containing "
+                << my_mat.n_elem <<  " elements>"  << endl;
             return String(my_repr.str());
         }
 
+        Object ref_count() {
+            return Int(Object(this).reference_count()-1);
+        }
         /*
         virtual Py_ssize_t buffer_getreadbuffer(Py_ssize_t segment, void** ptrptr ) {
             if(segment != 0) throw ValueError("no such segment");
-            *ptrptr = self.memptr();
-            return self.n_elem*sizeof(cx_double);
+            *ptrptr = my_mat.memptr();
+            return my_mat.n_elem*sizeof(cx_double);
         }
 
         virtual Py_ssize_t buffer_getsegcount(Py_ssize_t* lenp) {
             if(lenp != NULL) {
-                *lenp = self.n_elem * sizeof(cx_double);
+                *lenp = my_mat.n_elem * sizeof(cx_double);
                 cout << "Lenp is " << *lenp << endl;
             }
             return 1;
@@ -69,24 +73,27 @@ class cx_buf : public PythonExtension<cx_buf> {
         */
 
         virtual int buffer_get(Py_buffer *buf, int flags) {
-            if(!(flags & PyBUF_F_CONTIGUOUS))
-                throw ValueError("can only return Fortran-style matrix");
+           if(!(flags & PyBUF_F_CONTIGUOUS))
+               throw ValueError("can only return Fortran-style matrix"); 
 
-            cout << ">> get buffer" << endl;
-            *buf = this->buf;
-            return 0;
+//           cout << ">> get buffer" << endl;
+           Object(this).increment_reference_count();
+           *buf = this->buf;
+           return 0;
         }
 
         virtual void buffer_release(Py_buffer *buf) {
-            cout << "<< release buffer" << endl;
+ //           cout << "<< release buffer" << endl;
         }
 
         static void init_type(){ 
             behaviors().supportRepr();
             behaviors().supportBufferType();
+            
+            add_noargs_method("ref_count", &cx_buf::ref_count, "get my ref count");
         }
     private:
-        cx_mat self;
+        cx_mat my_mat;
         Py_buffer buf;
         Py_ssize_t shape[2], strides[2];
 };
@@ -146,11 +153,11 @@ class fdm_module : public ExtensionModule<fdm_module> {
             Py_buffer thing;
             if(PyObject_GetBuffer(args[0].ptr(), &thing, PyBUF_F_CONTIGUOUS) < 0)
                 throw TypeError("unable to get thing buffer");
+            //cout << "got buffer from python" << endl;
             cx_mat thing_2(reinterpret_cast<cx_double *>(thing.buf), thing.shape[0], thing.shape[1]);
             cx_mat res = thing_2 - ones<cx_mat>(thing.shape[0], thing.shape[1]);
-            return asObject(new cx_buf(res));
+            return asObject(new cx_buf(res)); 
         }
-
 
         Object reduce_dimension(const Tuple& args) {
             fdm_ctx *ctx = pyobj2fdm(args[0]);

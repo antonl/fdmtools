@@ -1,4 +1,10 @@
+import sys
+import _fdm as fdm
+import numpy as np
+x = np.random.rand(100,100)
+y = np.asarray(x, dtype=np.complex128, order='F')
 
+'''
 import numpy as np
 import _fdm as fdm
 
@@ -41,4 +47,4 @@ ctx = fdm.make_ctx(cn, z_j)
 print ctx
 
 print "done"
-
+'''

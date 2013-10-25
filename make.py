@@ -17,7 +17,8 @@ setup(
     url = "", 
     ext_modules = [
         Extension('_fdm',
-            define_macros= [('USE_THREAD', 0), ('ARMA_EXTRA_DEBUG', 1)],
+            define_macros= [('USE_THREAD',), ('DEBUG',), ('PYCXX_DEBUG',)],
+            undef_macros=['NDEBUG'],
             sources = [
                 'fdm_ctx.cpp',
                 'fdm_module.cpp', 
@@ -31,6 +32,7 @@ setup(
                 '/usr/local/Cellar/openblas/0.2.6/include'],
             libraries = ['openblas'],
             library_dirs = ['/usr/local/Cellar/openblas/0.2.6/lib'],
+            extra_compile_args = ['-O0']
             )
             
         ],

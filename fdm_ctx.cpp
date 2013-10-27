@@ -5,68 +5,7 @@
 
 using namespace std;
 
-inline s_split split(double a) {
-    s_split dbl;
-
-    static double factor = (2<<27) + 1;
-    double c = factor*a;
-    dbl.a = c - (c - a);
-    dbl.b = a - dbl.a;
-    return dbl;
-}
-
-inline s_split two_product(double a, double b) {
-    double x = a*b;
-    s_split a_ = split(a);
-    s_split b_ = split(b);
-    double y = a_.b*b_.b - (((x - a_.a*b_.b) - a_.b*b_.a) - a_.a*b_.b);
-    s_split ret = {.a = x, .b = y};
-    return ret;
-}
-
-inline double my_exp(double x, int n) {
-    double p = x;
-    double e = 0;
-
-    for(int i = 2; i < n+1; ++i) {
-        s_split res = two_product(p, x);
-        p = res.a;
-        e = e*x + res.b;
-    }
-    return p + e;
-}
-
 /*
-inline cx_double my_exp(cx_double x, int n) {
-    double p1 = x.real;
-    double p2 = x.imag;
-    double ep1 = 0;
-    double ep2 = 0;
-    double e1, e2, e3, e4;
-
-    for(int i = 2; i < n+1; ++i) {
-        s_split res1 = two_product(p1, p1);
-        p1 = res1.a;
-        e1 = e1*x + res1.b;
-
-        s_split res2 = two_product(p2, x.imag);
-        p2 = res2.a;
-        e2 = e2*x + res2.b;
-
-        s_split res3 = two_product(p3, x.imag);
-        p3 = res3.a;
-        e3 = e3*x + res3.b;
-
-        s_split res4 = two_product(p4, x.imag);
-        p4 = res4.a;
-        e3 = e3*x + res3.b;
-    }
-    return p + e;
-
-    return cx_double(my_exp(x.real,  
-}
-*/
-
 fdm_ctx::fdm_ctx(cx_double *signal, unsigned int n_count, range freqs, 
     unsigned int basis_count) throw (runtime_error):
     signal(signal, n_count, false), J(basis_count),
@@ -83,6 +22,7 @@ fdm_ctx::fdm_ctx(cx_double *signal, unsigned int n_count, range freqs,
         throw runtime_error("this constructor is not implemented");
         //generate_U();
     }
+*/
 
 fdm_ctx::fdm_ctx(cx_double *signal, unsigned int n_count, cx_double *zj,
     unsigned int basis_count) throw (runtime_error):
@@ -92,7 +32,10 @@ fdm_ctx::fdm_ctx(cx_double *signal, unsigned int n_count, cx_double *zj,
     U0(basis_count, basis_count, fill::zeros),
     U1(basis_count, basis_count, fill::zeros),
     U2(basis_count, basis_count, fill::zeros) {
+        //this->signal.print("Signal");
+        //this->zj.print("zj");
         generate_U();
+
     }
 
 inline void fdm_ctx::generate_cache(unsigned int M) 
@@ -142,6 +85,7 @@ void fdm_ctx::generate_U()
 
         // FIXME: use the Chen&Guo method to generate U1,U2 recursively
 
+        /*
         for(int i = 0; i < J; ++i) {
             for(int j = 0; j <= i; ++j) {
                 if(i == j) U0(i, i) = gen_diagonal<0>(i, M);
@@ -153,7 +97,44 @@ void fdm_ctx::generate_U()
                 }
             }
         }
+        */
 
+        for(int i = 0; i < J; ++i) {
+            for(int j = 0; j <= i; ++j) {
+                if(i == j) U0(i, i) = gen_diagonal<0>(i, M);
+                else {
+                    U0(i, j) = (zj[i]*Gl(j, 0, M) - zj[j]*Gl(i, 0, M) 
+                        - zj_invM[i]*Gl(j, M+1, M) + zj_invM[i]*Gl(j, M+1, M))/
+                        (zj[i] - zj[j]);
+                    U0(j, i) = U0(i, j);
+                }
+            }
+        }
+
+        for(int i = 0; i < J; ++i) {
+            for(int j = 0; j <= i; ++j) {
+                if(i == j) U1(i, i) = gen_diagonal<1>(i, M);
+                else {
+                    U1(i, j) = (zj[i]*Gl(j, 1, M) - zj[j]*Gl(i, 1, M) 
+                        - zj_invM[i]*Gl(j, M+2, M) + zj_invM[i]*Gl(j, M+2, M))/
+                        (zj[i] - zj[j]);
+                    U1(j, i) = U1(i, j);
+                }
+            }
+        }
+
+        for(int i = 0; i < J; ++i) {
+            for(int j = 0; j <= i; ++j) {
+                if(i == j) U2(i, i) = gen_diagonal<2>(i, M);
+                else {
+                    U2(i, j) = (zj[i]*Gl(j, 2, M) - zj[j]*Gl(i, 2, M) 
+                        - zj_invM[i]*Gl(j, M+3, M) + zj_invM[i]*Gl(j, M+3, M))/
+                        (zj[i] - zj[j]);
+                    U2(j, i) = U2(i, j);
+                }
+            }
+        }
+        /*
         for(int i = 0; i < J; ++i) {
             for(int j = 0; j <= i; ++j) {
                 if(i == j) U1(i, i) = gen_diagonal<1>(i, M);
@@ -177,6 +158,7 @@ void fdm_ctx::generate_U()
                 }
             }
         }
+        */
     }
 
 void fdm_ctx::reduce_dimension(double threshold) {

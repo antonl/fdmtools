@@ -110,7 +110,7 @@ class fdm_module : public ExtensionModule<fdm_module> {
                     "generate U matrix");
             add_varargs_method("reduce_dimension", &fdm_module::reduce_dimension, 
                     "reduce dimension");
-            add_varargs_method("get_U_mats", &fdm_module::get_U_mats, 
+            add_varargs_method("get_mats", &fdm_module::get_mats, 
                     "get U for testing");
             add_varargs_method("solve", &fdm_module::solve, 
                     "solve fdm");
@@ -140,7 +140,7 @@ class fdm_module : public ExtensionModule<fdm_module> {
 
                     return ctx;
                 } else
-                    throw TypeError("two or three arguments required");
+                    throw TypeError("two arguments required");
 
             } catch (Exception &e) { 
                 PyBuffer_Release(&sig);
@@ -152,7 +152,7 @@ class fdm_module : public ExtensionModule<fdm_module> {
         Object make_buffer(const Tuple& args) {
             Py_buffer thing;
             if(PyObject_GetBuffer(args[0].ptr(), &thing, PyBUF_F_CONTIGUOUS) < 0)
-                throw TypeError("unable to get thing buffer");
+                throw TypeError("unable to get F-contiguous buffer");
             //cout << "got buffer from python" << endl;
             cx_mat thing_2(reinterpret_cast<cx_double *>(thing.buf), thing.shape[0], thing.shape[1]);
             cx_mat res = thing_2 - ones<cx_mat>(thing.shape[0], thing.shape[1]);
@@ -185,54 +185,21 @@ class fdm_module : public ExtensionModule<fdm_module> {
             }
         }
 
-        Object get_U_mats(const Tuple& args) {
+        Object get_mats(const Tuple& args) {
             fdm_ctx *ctx = pyobj2fdm(args[0]);
             try {
-                /*
-                Object U0 = asObject(PyBuffer_FromMemory(ctx->U0.memptr(), 
-                    sizeof(cx_double)*ctx->U0.n_elem));
-                Object U1 = asObject(PyBuffer_FromMemory(ctx->U1.memptr(), 
-                    sizeof(cx_double)*ctx->U1.n_elem));
-                Object U2 = asObject(PyBuffer_FromMemory(ctx->U2.memptr(), 
-                    sizeof(cx_double)*ctx->U2.n_elem));
-                
-                Object zj_inv = asObject(PyBuffer_FromMemory(ctx->zj_inv.memptr(), 
-                    sizeof(cx_double)*ctx->zj_inv.n_elem));
-                Object zj_invM = asObject(PyBuffer_FromMemory(ctx->zj_invM.memptr(), 
-                    sizeof(cx_double)*ctx->zj_invM.n_elem));
-
-                Object zj = asObject(PyBuffer_FromMemory(ctx->zj.memptr(), 
-                    sizeof(cx_double)*ctx->zj.n_elem));
-                Object signal = asObject(PyBuffer_FromMemory(ctx->signal.memptr(), 
-                    sizeof(cx_double)*ctx->signal.n_elem));
-
-                Object Bk = asObject(PyBuffer_FromMemory(ctx->Bk.memptr(), 
-                    sizeof(cx_double)*ctx->Bk.n_elem));
-                Object alpha = asObject(PyBuffer_FromMemory(ctx->alpha.memptr(), 
-                    sizeof(cx_double)*ctx->alpha.n_elem));
-                Object beta = asObject(PyBuffer_FromMemory(ctx->beta.memptr(), 
-                    sizeof(cx_double)*ctx->beta.n_elem));
-                */
                 Dict res;
 
-                /*
-                res["U0"] = U0;
-                res["U1"] = U1;
-                res["U2"] = U2;
-                */
+                res["U0"] = asObject(new cx_buf(ctx->U0));
+                res["U1"] = asObject(new cx_buf(ctx->U1));
+                res["U2"] = asObject(new cx_buf(ctx->U2));
                 res["J"] = Int(int(ctx->J));
 
-                /*
-                res["zj_inv"] = zj_inv;
-                res["zj_invM"] = zj_invM;
+                res["zj_inv"] = asObject(new cx_buf(ctx->zj_inv));
+                res["zj_invM"] = asObject(new cx_buf(ctx->zj_invM));
 
-                res["zj"] = zj;
-                res["signal"] = signal;
-
-                res["Bk"] = Bk;
-                res["alpha"] = alpha;
-                res["beta"] = beta;
-                */
+                res["zj"] = asObject(new cx_buf(ctx->zj));
+                res["signal"] = asObject(new cx_buf(ctx->signal));
 
                 return res;
 
@@ -248,8 +215,8 @@ class fdm_module : public ExtensionModule<fdm_module> {
     private:
         inline Object create_ctx(cx_double *signal, unsigned int n_count,
                 cx_double *zj, unsigned int basis_count);
-        inline Object create_ctx(cx_double *signal, unsigned int n_count,
-                range freqs, unsigned int basis_count);
+        //inline Object create_ctx(cx_double *signal, unsigned int n_count,
+        //        range freqs, unsigned int basis_count);
         inline fdm_ctx *pyobj2fdm(Object ctx);
         inline Object fdm2pyobj(fdm_ctx *ctx);
 };

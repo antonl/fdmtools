@@ -47,6 +47,9 @@ class fdm_ctx {
 
         cx_vec signal, zj;
         cx_vec zj_inv, zj_invM; // cache
+
+        cx_vec G0, G0_M, G1, G1_M;
+
         cx_mat U0, U1, U2;
         eigpair test_ggev();
         pair<cx_vec, cx_mat> get_harminv_U(double, double);
@@ -60,6 +63,7 @@ class fdm_ctx {
 
         inline void generate_cache(unsigned int M);
 
+        /*
         inline cx_double Gl(unsigned int idx, unsigned int kap, unsigned int M) {
             complex<long double> ul_invk(1, 0), ul_inv(zj_inv[idx]); 
             // k=0 term
@@ -72,6 +76,7 @@ class fdm_ctx {
 
             return sum;
         }
+        */
 
         template <int p> inline cx_double f(unsigned int j, unsigned int M);
         template <int p> inline cx_double g(unsigned int j, unsigned int M);

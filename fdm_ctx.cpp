@@ -40,11 +40,31 @@ fdm_ctx::fdm_ctx(cx_double *signal, unsigned int n_count, cx_double *zj,
         generate_U();
 
     }
+static cmplx cpow_i(cmplx c, int n)
+{
+     if (n < 0)
+	  return (1.0 / cpow_i(c, -n));
+     else {
+	  cmplx result = 1;
+	  while (n > 1) {
+	       if (n % 2 == 1)
+		    result *= c;
+	       c *= c;
+	       n /= 2;
+	  }
+	  if (n > 0)
+	       result *= c;
+	  return result;
+     }
+}
+
 
 inline void fdm_ctx::generate_cache(unsigned int M) 
     {
-        zj_inv = 1./zj; 
-        zj_invM = pow(zj_inv, M);
+        for(int i = 0; i < zj.n_elem; i++) {
+            zj_inv(i) = 1./zj(i);
+            zj_invM(i) = cpow_i(zj(i), -M);
+        }
     }
 
 template <int p>inline cx_double fdm_ctx::f(unsigned int j, unsigned int M) 
@@ -99,27 +119,50 @@ void fdm_ctx::generate_U()
     {
         unsigned int M = signal.n_elem/2 - 2; 
 
-        cx_vec G0(J, fill::zeros), G0_M(J, fill::zeros), 
-               G1(J, fill::zeros), G1_M(J, fill::zeros);
+        G0 = cx_vec(J, fill::zeros);
+        G0_M = cx_vec(J, fill::zeros); 
+        G1 = cx_vec(J, fill::zeros);
+        G1_M = cx_vec(J, fill::zeros);
+
+        cx_vec zj_inv_m = cx_vec(J, fill::ones);
 
         generate_cache(M);
+        int p = 0;
 
-        complex<long double> zj_inv_m;
+        /*
+        for (int m = 0; m <= M; ++m) {
+            cmplx c1 = signal(m + p), c2 = signal(m + p + M + 1);
+            double d = m + 1; // M - fabs(M - m) + 1 
+            double d2 = M - m; // M - fabs(M - (m + M + 1)) + 1 
 
+            for (int i = 0; i < J; ++i) {
+                cmplx x1 = zj_inv_m(i) * c1;
+                cmplx x2 = zj_inv_m(i) * c2;
+                G0(i) += x1;
+                G0_M(i) += x2;
+                U0(i, i) += x1 * d + x2 * d2 * zj_invM(i) * zj_inv(i);
+                if (m % 8 == 8 - 1)
+                    zj_inv_m(i) = cpow_i(zj_inv(i), m + 1);
+                else
+                    zj_inv_m(i) *= zj_inv(i);
+            }
+        }
+        */
         for(int k = 0; k <= M; ++k) {
-            zj_inv_m = 1;
-
             for(int i = 0; i < J; ++i) {
-                cx_double ul(zj_inv_m.real(), zj_inv_m.imag());
-                G0(i) += ul*signal(k + 0); // p = 0
-                G0_M(i) += ul*signal(k + M + 1 + 0); // p = 0
+                G0(i) += zj_inv_m(i)*signal(k + 0); // p = 0
+                G0_M(i) += zj_inv_m(i)*signal(k + M + 1 + 0); // p = 0
 
-                G1(i) += ul*signal(k + 1); // p = 1
-                G1_M(i) += ul*signal(k + M + 1 + 1); // p = 1
+                G1(i) += zj_inv_m(i)*signal(k + 1); // p = 1
+                G1_M(i) += zj_inv_m(i)*signal(k + M + 1 + 1); // p = 1
 
-                U0(i, i) = U0(i, i) + double(k + 1)*signal(k + 0)*ul 
-                    + double(M-k)*signal(k + M + 1 + 0)*ul*zj_invM(i);
-                zj_inv_m *= complex<long double>(zj_inv(i));
+                U0(i, i) += double(k + 1)*signal(k + 0)*zj_inv_m(i) 
+                    + double(M-k)*signal(k + M + 1 + 0)*zj_inv_m(i)*zj_invM(i)
+                    *zj_inv(i);
+                if (k % 8 == 8 - 1)
+                    zj_inv_m(i) = cpow_i(zj_inv(i), k + 1);
+                else
+                    zj_inv_m(i) *= zj_inv(i);
             }
         }
 
@@ -230,6 +273,24 @@ pair<cx_vec, cx_mat> fdm_ctx::get_harminv_U(double fmin, double fmax) {
         fmin, fmax, J);
     cx_mat nU0(dat->U0, J, J);
     cx_vec z(dat->z, J);
+    cx_vec sig(dat->c, signal.n_elem);
+    cx_vec G0(dat->G0, J);
+    cx_vec G0_M(dat->G0_M, J);
+
+    cout << "printing out zj" << endl;
+    for(int i = 0; i < J; i++)
+        cout << zj(i) << " " << z(i) << endl;
+    cout << "printing out sig" << endl;
+    for(int i = 0; i < signal.n_elem; i++)
+        cout << signal(i) << " " << sig(i) << endl;
+
+    /*
+    cout << "printing out G0" << endl;
+    for(int i = 0; i < J; i++)
+        cout << this->G0(i) << " " << G0(i) << " " << this->G0_M(i) << " " 
+            << G0_M(i) << endl;
+    */
+    
     return pair<cx_vec, cx_mat>(z, nU0);
 }
 
@@ -390,18 +451,37 @@ eigpair fdm_ctx::solve_ggev(double threshold) {
         throw runtime_error(s.str());
     }
 
-    cx_vec lambda = alpha / beta;
+    cx_vec lambda = alpha / beta; // Not supposed to do this...
 
     vector<int> idx; // stores low-norm vectors
 
+    /* old way of doing it, all eigs are about the same
     for(int i = 0; i < lambda.n_elem; ++i) {
-        double res = norm((U2 - lambda[i]*lambda[i]*U0) * V.col(i), 1);
+        double res = norm((U2 - lambda[i]*lambda[i]*U0) * V.col(i), "inf");
         cout << i << "th norm: " << res << endl;
         if(res < threshold) idx.push_back(i);
+    }
+    */
+    double rel_err;
+    for(int i = 0; i < J; ++i) {
+        cx_double VU2V = dot(V.col(i), U2*V.col(i));
+        rel_err = cabs(0.5*clog(VU2V / (lambda(i)*lambda(i)))) / 
+            cabs(clog(lambda(i)));
+        cout << "err " << i << " " << rel_err <<endl; 
+        if(rel_err < threshold) idx.push_back(i);
+    }
+
+    cx_vec nlambda(idx.size());
+    cx_mat nV(V.n_rows, idx.size());
+
+    int j = 0;
+    for(auto i = idx.begin(); i < idx.end(); i++) {
+        nlambda(j) = lambda(*i);
+        nV.col(j) = V.col(*i);
+        j++;
     }
 
     cout << "Got " << idx.size() << " surviving eigenvalues" << endl;
 
-
-    return eigpair(lambda, V);
+    return eigpair(nlambda, nV);
 }

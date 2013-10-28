@@ -440,7 +440,7 @@ eigpair fdm_ctx::solve_ggev(double threshold) {
     cx_vec alpha(J), beta(J); // eigenvalues
     cx_mat V(J, J);
 
-    cout << "Got threshold " << threshold << endl;
+    //cout << "Got threshold " << threshold << endl;
 
     int err = LAPACKE_zggev(CblasColMajor, 'N', 'V', J, A.memptr(), J, 
         B.memptr(), J, alpha.memptr(), beta.memptr(), 0, 1, V.memptr(), J);
@@ -453,8 +453,6 @@ eigpair fdm_ctx::solve_ggev(double threshold) {
 
     cx_vec lambda = alpha / beta; // Not supposed to do this...
 
-    vector<int> idx; // stores low-norm vectors
-
     /* old way of doing it, all eigs are about the same
     for(int i = 0; i < lambda.n_elem; ++i) {
         double res = norm((U2 - lambda[i]*lambda[i]*U0) * V.col(i), "inf");
@@ -462,6 +460,8 @@ eigpair fdm_ctx::solve_ggev(double threshold) {
         if(res < threshold) idx.push_back(i);
     }
     */
+
+    /*
     double rel_err;
     for(int i = 0; i < J; ++i) {
         cx_double VU2V = dot(V.col(i), U2*V.col(i));
@@ -470,18 +470,36 @@ eigpair fdm_ctx::solve_ggev(double threshold) {
         cout << "err " << i << " " << rel_err <<endl; 
         if(rel_err < threshold) idx.push_back(i);
     }
+    */
 
-    cx_vec nlambda(idx.size());
-    cx_mat nV(V.n_rows, idx.size());
+    vec rel_err(J);
+    for(int i=0; i < J; ++i) {
+        cx_double VU2V = dot(V.col(i), U2*V.col(i));
+        rel_err(i) = cabs(0.5*clog(VU2V / (lambda(i)*lambda(i)))) / 
+            cabs(clog(lambda(i)));
+        //cout << "err " << i << " " << rel_err(i) <<endl; 
+    }
 
+    rel_err *= 1.0/rel_err.min(); // Normalize
+    uvec pass = find(rel_err < threshold);
+    cx_vec nlambda(lambda(pass));
+    cx_mat nV(V.cols(pass));
+    /*
+    for(int i = 0; i < J; ++i) {
+        cout << "Rel err " << i << " " << rel_err(i) <<endl; 
+    }
+    */
+
+    /*
     int j = 0;
     for(auto i = idx.begin(); i < idx.end(); i++) {
         nlambda(j) = lambda(*i);
         nV.col(j) = V.col(*i);
         j++;
     }
+    */
 
-    cout << "Got " << idx.size() << " surviving eigenvalues" << endl;
+    cout << "Got " << nlambda.n_elem << " surviving eigenvalues" << endl;
 
     return eigpair(nlambda, nV);
 }

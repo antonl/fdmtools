@@ -34,7 +34,10 @@ class fdm_ctx {
         void reduce_dimension(double threshold);
 
         void solve(double threshold) {
-            solution = solve_once(threshold);
+            //solution = solve_once(threshold);
+            J = zj.n_elem;
+            cout << "Solving a thing! " << endl;
+            solution = solve_ggev(threshold);
         }
 
         ~fdm_ctx() {}
@@ -45,12 +48,14 @@ class fdm_ctx {
         cx_vec signal, zj;
         cx_vec zj_inv, zj_invM; // cache
         cx_mat U0, U1, U2;
-
+        eigpair test_ggev();
+        pair<cx_vec, cx_mat> get_harminv_U(double, double);
     private:
 
         //range freq_limits;
 
         eigpair solve_once(double threshold = 1e-5);
+        eigpair solve_ggev(double threshold = 1e-5);
         eigpair find_eigenvectors(cx_mat X, double threshold);
 
         inline void generate_cache(unsigned int M);

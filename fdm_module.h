@@ -114,6 +114,10 @@ class fdm_module : public ExtensionModule<fdm_module> {
                     "get U for testing");
             add_varargs_method("solve", &fdm_module::solve, 
                     "solve fdm");
+            add_varargs_method("test_ggev", &fdm_module::test_ggev, 
+                    "test ggev");
+            add_varargs_method("get_harminv_U", &fdm_module::get_harminv_U, 
+                    "test harminv U");
             initialize("I contain things");
         }
 
@@ -183,6 +187,22 @@ class fdm_module : public ExtensionModule<fdm_module> {
             } catch (Exception &e) {
                 return None();
             }
+        }
+
+        Object test_ggev(const Tuple& args) {
+            fdm_ctx *ctx = pyobj2fdm(args[0]);
+            eigpair sol = ctx->test_ggev();
+            return TupleN(asObject(new cx_buf(sol.first)), 
+                asObject(new cx_buf(sol.second)));
+        }
+
+        Object get_harminv_U(const Tuple& args) {
+            fdm_ctx *ctx = pyobj2fdm(args[0]);
+            pair<cx_vec, cx_mat> sol = ctx->get_harminv_U(Float(args[1]), 
+                Float(args[2]));
+            return TupleN(asObject(new cx_buf(sol.first)), 
+                asObject(new cx_buf(sol.second)) 
+                );
         }
 
         Object get_mats(const Tuple& args) {

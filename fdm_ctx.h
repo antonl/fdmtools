@@ -62,7 +62,6 @@ class fdm_ctx {
 
         inline cx_double Gl(unsigned int idx, unsigned int kap, unsigned int M) {
             complex<long double> ul_invk(1, 0), ul_inv(zj_inv[idx]); 
-
             // k=0 term
             cx_double sum = signal[kap];
 

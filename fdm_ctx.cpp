@@ -80,13 +80,69 @@ template <int p> inline cx_double fdm_ctx::gen_diagonal(unsigned int j,
         return sum;
     }
 
+/*
+cx_double Gl(unsigned int idx, unsigned int kap, unsigned int M) {
+    complex<long double> ul_invk(1, 0), ul_inv(zj_inv[idx]); 
+    // k=0 term
+    cx_double sum = signal[kap];
+
+    for(int k = 1; k < M + 1; k++) {
+        ul_invk *= ul_inv;
+        sum += cx_double(ul_invk)*signal[k + kap];
+    }
+
+    return sum;
+}
+*/
+
 void fdm_ctx::generate_U() 
     {
-        unsigned int M = floor(signal.n_elem - 2.)/2; 
+        unsigned int M = signal.n_elem/2 - 2; 
+
+        cx_vec G0(J, fill::zeros), G0_M(J, fill::zeros), 
+               G1(J, fill::zeros), G1_M(J, fill::zeros);
 
         generate_cache(M);
 
-        // FIXME: use the Chen&Guo method to generate U1,U2 recursively
+        complex<long double> zj_inv_m;
+
+        for(int k = 0; k <= M; ++k) {
+            zj_inv_m = 1;
+
+            for(int i = 0; i < J; ++i) {
+                cx_double ul(zj_inv_m.real(), zj_inv_m.imag());
+                G0(i) += ul*signal(k + 0); // p = 0
+                G0_M(i) += ul*signal(k + M + 1 + 0); // p = 0
+
+                G1(i) += ul*signal(k + 1); // p = 1
+                G1_M(i) += ul*signal(k + M + 1 + 1); // p = 1
+
+                U0(i, i) = U0(i, i) + double(k + 1)*signal(k + 0)*ul 
+                    + double(M-k)*signal(k + M + 1 + 0)*ul*zj_invM(i);
+                zj_inv_m *= complex<long double>(zj_inv(i));
+            }
+        }
+
+        // Matrix is symmetric by assumption, and we have already set the
+        // diagonal
+        for(int i = 0; i < J; ++i) {
+            for(int j = 0; j < i; ++j) {
+                U0(i, j) = (zj(i)*G0(j) - zj(j)*G0(i) - zj_invM(i)*G0_M(j)
+                    + zj_invM(j)*G0_M(i))/(zj(i) - zj(j));
+                U0(j, i) = U0(i, j);
+
+                U1(i, j) = 0.5*((zj(i) + zj(j))*U0(i,j) - zj(i)*G0(j) -zj(j)*G0(i)
+                    + zj_invM(i)*G0_M(j) + zj_invM(j)*G0_M(i));
+                U1(j, i) = U1(i, j);
+
+                U2(i, j) = 0.5*((zj(i) + zj(j))*U1(i,j) - zj(i)*G1(j) -zj(j)*G1(i)
+                    + zj_invM(i)*G1_M(j) + zj_invM(j)*G1_M(i));
+                U2(j, i) = U2(i, j);
+            }
+
+            U1(i,i) = zj(i)*U0(i,i) - zj(i)*G0(i) + zj_invM(i)*G0_M(i);
+            U2(i,i) = zj(i)*U1(i,i) - zj(i)*G1(i) + zj_invM(i)*G1_M(i);
+        }
 
         /*
         for(int i = 0; i < J; ++i) {
@@ -102,6 +158,7 @@ void fdm_ctx::generate_U()
         }
         */
 
+        /*
         for(int i = 0; i < J; ++i) {
             for(int j = 0; j <= i; ++j) {
                 if(i == j) U0(i, i) = gen_diagonal<0>(i, M);
@@ -141,6 +198,7 @@ void fdm_ctx::generate_U()
                 }
             }
         }
+        */
         /*
         for(int i = 0; i < J; ++i) {
             for(int j = 0; j <= i; ++j) {

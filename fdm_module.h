@@ -108,8 +108,8 @@ class fdm_module : public ExtensionModule<fdm_module> {
                     "create a buffer");
             add_varargs_method("make_ctx", &fdm_module::make_ctx, 
                     "generate U matrix");
-            add_varargs_method("reduce_dimension", &fdm_module::reduce_dimension, 
-                    "reduce dimension");
+            //add_varargs_method("reduce_dimension", &fdm_module::reduce_dimension, 
+            //        "reduce dimension");
             add_varargs_method("get_mats", &fdm_module::get_mats, 
                     "get U for testing");
             add_varargs_method("solve", &fdm_module::solve, 
@@ -163,6 +163,7 @@ class fdm_module : public ExtensionModule<fdm_module> {
             return asObject(new cx_buf(res)); 
         }
 
+        /*
         Object reduce_dimension(const Tuple& args) {
             fdm_ctx *ctx = pyobj2fdm(args[0]);
             try {
@@ -175,13 +176,15 @@ class fdm_module : public ExtensionModule<fdm_module> {
             }
         }
 
+        */
         Object solve(const Tuple& args) {
             fdm_ctx *ctx = pyobj2fdm(args[0]);
             try {
                 Float thresh = args[1];
                 ctx->solve(thresh);
                 return TupleN(asObject(new cx_buf(ctx->solution.first)), 
-                    asObject(new cx_buf(ctx->solution.second)), Int(ctx->J));
+                    asObject(new cx_buf(ctx->solution.second)), Int(ctx->J), 
+                    asObject(new cx_buf(ctx->amplitudes)));
             } catch (runtime_error &e) {
                 throw RuntimeError(e.what());
             } catch (Exception &e) {

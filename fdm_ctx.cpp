@@ -59,6 +59,7 @@ static cmplx cpow_i(cmplx c, int n)
 }
 
 
+
 inline void fdm_ctx::generate_cache(unsigned int M) 
     {
         for(int i = 0; i < zj.n_elem; i++) {
@@ -67,6 +68,7 @@ inline void fdm_ctx::generate_cache(unsigned int M)
         }
     }
 
+/*
 template <int p>inline cx_double fdm_ctx::f(unsigned int j, unsigned int M) 
     {
         cx_double sum;
@@ -99,21 +101,8 @@ template <int p> inline cx_double fdm_ctx::gen_diagonal(unsigned int j,
         }
         return sum;
     }
-
-/*
-cx_double Gl(unsigned int idx, unsigned int kap, unsigned int M) {
-    complex<long double> ul_invk(1, 0), ul_inv(zj_inv[idx]); 
-    // k=0 term
-    cx_double sum = signal[kap];
-
-    for(int k = 1; k < M + 1; k++) {
-        ul_invk *= ul_inv;
-        sum += cx_double(ul_invk)*signal[k + kap];
-    }
-
-    return sum;
-}
 */
+
 
 void fdm_ctx::generate_U() 
     {
@@ -127,27 +116,7 @@ void fdm_ctx::generate_U()
         cx_vec zj_inv_m = cx_vec(J, fill::ones);
 
         generate_cache(M);
-        int p = 0;
 
-        /*
-        for (int m = 0; m <= M; ++m) {
-            cmplx c1 = signal(m + p), c2 = signal(m + p + M + 1);
-            double d = m + 1; // M - fabs(M - m) + 1 
-            double d2 = M - m; // M - fabs(M - (m + M + 1)) + 1 
-
-            for (int i = 0; i < J; ++i) {
-                cmplx x1 = zj_inv_m(i) * c1;
-                cmplx x2 = zj_inv_m(i) * c2;
-                G0(i) += x1;
-                G0_M(i) += x2;
-                U0(i, i) += x1 * d + x2 * d2 * zj_invM(i) * zj_inv(i);
-                if (m % 8 == 8 - 1)
-                    zj_inv_m(i) = cpow_i(zj_inv(i), m + 1);
-                else
-                    zj_inv_m(i) *= zj_inv(i);
-            }
-        }
-        */
         for(int k = 0; k <= M; ++k) {
             for(int i = 0; i < J; ++i) {
                 G0(i) += zj_inv_m(i)*signal(k + 0); // p = 0
@@ -187,113 +156,44 @@ void fdm_ctx::generate_U()
             U2(i,i) = zj(i)*U1(i,i) - zj(i)*G1(i) + zj_invM(i)*G1_M(i);
         }
 
-        /*
-        for(int i = 0; i < J; ++i) {
-            for(int j = 0; j <= i; ++j) {
-                if(i == j) U0(i, i) = gen_diagonal<0>(i, M);
-                else {
-                    U0(i,j) = (zj[i]*f<0>(j, M) - zj[j]*f<0>(i, M) - 
-                        zj_invM[i]*g<0>(j, M) + zj_invM[j]*g<0>(i, M)) / 
-                        (zj[i] - zj[j]);
-                    U0(j, i) = U0(i, j);
-                }
-            }
-        }
-        */
-
-        /*
-        for(int i = 0; i < J; ++i) {
-            for(int j = 0; j <= i; ++j) {
-                if(i == j) U0(i, i) = gen_diagonal<0>(i, M);
-                else {
-                    U0(i, j) = (zj[i]*Gl(j, 0, M) - zj[j]*Gl(i, 0, M) 
-                        - zj_invM[i]*Gl(j, M+1, M) + zj_invM[i]*Gl(j, M+1, M))/
-                        (zj[i] - zj[j]);
-                    U0(j, i) = U0(i, j);
-                }
-            }
-        }
-
-        for(int i = 0; i < J; ++i) {
-            for(int j = 0; j <= i; ++j) {
-                if(i == j) {
-                    U1(i, i) = zj[i]*(U0(i,i) - Gl(i, 0, M)) 
-                        + zj_invM[i]*Gl(i, M+1, M);
-                } else {
-                    U1(i,j) = 0.5*((zj[i] + zj[j])*U0(i, j) - zj[i]*Gl(j, 0, M) 
-                        - zj[j]*Gl(i, 0, M) + zj_invM[i]*Gl(j, M+1, M) 
-                        + zj_invM[j]*Gl(i, M+1, M));
-                    U1(j, i) = U1(i, j);
-                }
-            }
-        }
-
-        for(int i = 0; i < J; ++i) {
-            for(int j = 0; j <= i; ++j) {
-                if(i == j) {
-                    U2(i, i) = zj[i]*(U1(i,i) - Gl(i, 1, M)) 
-                        + zj_invM[i]*Gl(i, M+2, M);
-                } else {
-                    U2(i,j) = 0.5*((zj[i] + zj[j])*U1(i, j) - zj[i]*Gl(j, 1, M) 
-                        - zj[j]*Gl(i, 1, M) + zj_invM[i]*Gl(j, M+2, M) 
-                        + zj_invM[j]*Gl(i, M+2, M));
-                    U2(j, i) = U2(i, j);
-                }
-            }
-        }
-        */
-        /*
-        for(int i = 0; i < J; ++i) {
-            for(int j = 0; j <= i; ++j) {
-                if(i == j) U1(i, i) = gen_diagonal<1>(i, M);
-                else {
-                    U1(i,j) = (zj[i]*f<1>(j, M) - zj[j]*f<1>(i, M) - 
-                        zj_invM[i]*g<1>(j, M) + zj_invM[j]*g<1>(i, M)) / 
-                        (zj[i] - zj[j]);
-                    U1(j, i) = U1(i, j);
-                }
-            }
-        }
-
-        for(int i = 0; i < J; ++i) {
-            for(int j = 0; j <= i; ++j) {
-                if(i == j) U2(i, i) = gen_diagonal<2>(i, M);
-                else {
-                    U2(i,j) = (zj[i]*f<2>(j, M) - zj[j]*f<2>(i, M) - 
-                        zj_invM[i]*g<2>(j, M) + zj_invM[j]*g<2>(i, M)) / 
-                        (zj[i] - zj[j]);
-                    U2(j, i) = U2(i, j);
-                }
-            }
-        }
-        */
     }
+
 pair<cx_vec, cx_mat> fdm_ctx::get_harminv_U(double fmin, double fmax) {
     harminv_data dat = harminv_data_create(signal.n_elem, signal.memptr(), 
         fmin, fmax, J);
+
+    //harminv_solve_once(dat);
+
+    //cx_double *a = harminv_compute_amplitudes(dat);
+
+    //cx_vec amps(a, harminv_get_num_freqs(dat));
+
     cx_mat nU0(dat->U0, J, J);
     cx_vec z(dat->z, J);
     cx_vec sig(dat->c, signal.n_elem);
     cx_vec G0(dat->G0, J);
     cx_vec G0_M(dat->G0_M, J);
 
+    /*
     cout << "printing out zj" << endl;
     for(int i = 0; i < J; i++)
         cout << zj(i) << " " << z(i) << endl;
-    cout << "printing out sig" << endl;
-    for(int i = 0; i < signal.n_elem; i++)
-        cout << signal(i) << " " << sig(i) << endl;
 
-    /*
+    cout << "printing out sig" << endl;
+    for(int i = 0; i < 100; i++)
+        cout << signal(i) << " " << sig(i) << endl;
+    */
+
     cout << "printing out G0" << endl;
     for(int i = 0; i < J; i++)
         cout << this->G0(i) << " " << G0(i) << " " << this->G0_M(i) << " " 
             << G0_M(i) << endl;
-    */
-    
+    //amps.print("amps\n");
+
     return pair<cx_vec, cx_mat>(z, nU0);
 }
 
+/*
 void fdm_ctx::reduce_dimension(double threshold) {
     // Run svd on U0 and truncate to threshold
     if(threshold >= 1.0) throw runtime_error("threshold must be <= 1.0");
@@ -327,6 +227,7 @@ void fdm_ctx::reduce_dimension(double threshold) {
     U1 = S*U.submat(r, span::all)*U1*Vt.submat(span::all, r)*S;
     U2 = S*U.submat(r, span::all)*U2*Vt.submat(span::all, r)*S;
 }
+*/
 
 pair<cx_vec, cx_mat> fdm_ctx::find_eigenvectors(cx_mat X, double threshold) {
     cx_mat A(X); // copy of U0
@@ -370,6 +271,37 @@ pair<cx_vec, cx_mat> fdm_ctx::find_eigenvectors(cx_mat X, double threshold) {
 
     return ret;
 }
+
+void fdm_ctx::calc_amplitudes() {
+/*
+    J = solution.lambda.n_elem
+    amplitudes = vec(J);
+    
+    for (k = ku = 0; k < d->nfreqs; ++k) {
+        cx_double asum = 0;
+	    if (u_near_unity(d->u[k], d->n)) { // eq. 27 
+	        for (j = 0; j < d->J; ++j)
+	            asum += d->B[k * d->J + j] * Uu[j * nu + ku];
+	    asum /= d->K;
+	    ku++;
+	    } else { // eq. 26 
+             for (j = 0; j < d->J; ++j)
+              asum += d->B[k * d->J + j] * d->G0[j];
+        }
+        a[k] = asum * asum;
+    }
+    for(int i = 0; i < J; ++i) {
+        amplitudes(i) = 1.0/(J + 1) * dot(solution.second.col(i), U0.col(i)
+    }
+*/
+};
+
+void fdm_ctx::solve(double threshold) {
+    J = zj.n_elem;
+    solution = solve_ggev(threshold);
+    calc_amplitudes();
+}
+
 
 eigpair fdm_ctx::solve_once(double threshold) {
     eigpair vp = find_eigenvectors(U0, threshold);
@@ -432,6 +364,15 @@ eigpair fdm_ctx::test_ggev() {
     }
 
     return eigpair(lambda, V);
+}
+
+#define UNITY_THRESH 1e-4 /* FIXME? */
+
+/* true if UNITY_THRESH < |u|^n < 1/UNITY_THRESH. */
+static int u_near_unity(cmplx u, int n)
+{
+     double nlgabsu = n * log(cabs(u));
+     return (log(UNITY_THRESH) < nlgabsu && nlgabsu < -log(UNITY_THRESH));
 }
 
 eigpair fdm_ctx::solve_ggev(double threshold) {
@@ -499,7 +440,44 @@ eigpair fdm_ctx::solve_ggev(double threshold) {
     }
     */
 
-    cout << "Got " << nlambda.n_elem << " surviving eigenvalues" << endl;
+    //cout << "Got " << nlambda.n_elem << " surviving eigenvalues" << endl;
+
+    amplitudes = cx_vec(pass.n_elem);
+    
+    /*
+    for (k = ku = 0; k < d->nfreqs; ++k) {
+        cx_double asum = 0;
+	    if (u_near_unity(d->u[k], d->n)) { // eq. 27 
+	        for (j = 0; j < d->J; ++j)
+	            asum += d->B[k * d->J + j] * Uu[j * nu + ku];
+	    asum /= d->K;
+	    ku++;
+	    } else { // eq. 26 
+             for (j = 0; j < d->J; ++j)
+              asum += d->B[k * d->J + j] * d->G0[j];
+        }
+        a[k] = asum * asum;
+    }
+    */
+    unsigned int M = signal.n_elem/2 - 2; 
+
+    int j = 0;
+    for(auto i = pass.begin(); i < pass.end(); ++i) {
+        // as in harminv, check for close to unity
+        /*
+        // FIXME: This is completely wrong. must regenerate U0
+        amplitudes(j) = 1.0/(M+1) * dot(V.col(*i), U0.col(*i));
+        amplitudes(j) *= amplitudes(j);
+        */
+        cx_double sum = 0;
+        for(auto k = 0; k < J; ++k) {
+            sum += V(k, *i)*G0(k);
+        }
+        amplitudes(j) = sum*sum;
+        j++;
+    }
+    //J = nlambda.n_elem;
 
     return eigpair(nlambda, nV);
 }
+

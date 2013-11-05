@@ -31,22 +31,18 @@ class fdm_ctx {
 
         fdm_ctx() = delete; // No default constructor
 
-        void reduce_dimension(double threshold);
-
-        void solve(double threshold) {
-            //solution = solve_once(threshold);
-            J = zj.n_elem;
-            cout << "Solving a thing! " << endl;
-            solution = solve_ggev(threshold);
-        }
 
         ~fdm_ctx() {}
         
+        void solve(double threshold);
+
         eigpair solution;
         int J;
 
         cx_vec signal, zj;
         cx_vec zj_inv, zj_invM; // cache
+
+        cx_vec amplitudes;
 
         cx_vec G0, G0_M, G1, G1_M;
 
@@ -55,6 +51,9 @@ class fdm_ctx {
         pair<cx_vec, cx_mat> get_harminv_U(double, double);
     private:
 
+        void calc_amplitudes();
+
+        //void reduce_dimension(double threshold);
         //range freq_limits;
 
         eigpair solve_once(double threshold = 1e-5);
@@ -64,26 +63,13 @@ class fdm_ctx {
         inline void generate_cache(unsigned int M);
 
         /*
-        inline cx_double Gl(unsigned int idx, unsigned int kap, unsigned int M) {
-            complex<long double> ul_invk(1, 0), ul_inv(zj_inv[idx]); 
-            // k=0 term
-            cx_double sum = signal[kap];
-
-            for(int k = 1; k < M + 1; k++) {
-                ul_invk *= ul_inv;
-                sum += cx_double(ul_invk)*signal[k + kap];
-            }
-
-            return sum;
-        }
-        */
-
         template <int p> inline cx_double f(unsigned int j, unsigned int M);
         template <int p> inline cx_double g(unsigned int j, unsigned int M);
         template <int p> inline cx_double gen_diagonal(unsigned int j, 
                 unsigned int M);
+        */
         void generate_U();
         
-        void filter_frequencies();
+        //void filter_frequencies();
 };
 #endif

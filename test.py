@@ -17,3 +17,6 @@ def test_cx_buf():
     assert np.allclose(y - np.asarray(buf).view(np.complex128), \
         np.ones(y.shape, dtype=np.complex128)) 
 
+def make_lorenzian():
+    # TODO: analytic solution test
+    pass

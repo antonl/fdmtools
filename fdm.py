@@ -1,6 +1,6 @@
 from __future__ import division, print_function
 from numpy import (zeros, zeros_like, ones_like, 
-    complex128, dot, argwhere, where, sqrt, log, pi, abs)
+    complex128, float64, dot, argwhere, where, sqrt, log, pi, abs)
 from scipy.linalg.lapack import zggev
 
 __all__ = ['generate_u', 'gen_amplitudes', 'solve_fdm'] 
@@ -114,7 +114,23 @@ def gen_amplitudes(B, g0):
         amps[n] = dot(B[:, n], g0)**2
     return amps
 
-def solve_fdm(ul, signal, threshold=1e-8, gen_u2=False):
+def generate_rel_err(eigs, vr, u2):
+    assert eigs.shape[0] == vr.shape[0], \
+        'number of eigvals and eigvecs must match'
+    assert vr.shape[0] == u2.shape[1], \
+        'number of eigvecs and U2 rows must be compatible'
+
+    rel_err = zeros((eigs.shape[0],), dtype=float64)
+
+    for l in xrange(eigs.shape[0]):
+        VU2V = dot(vr[:, l], dot(u2, vr[:, l]))
+        rel_err[l] = abs(0.5*log(VU2V / eigs[l]**2))/abs(eigs[l])
+
+    return rel_err
+
+def solve_fdm(ul, signal, amplitude_threshold=1e-8, relerr_threshold=1e-8, 
+        gen_u2=False):
+
     # TODO: actually these numbers are related to condition number 
     # from ZGGEV, so I can check spuriousness that way too
     SMALL = 1e-14
@@ -146,7 +162,16 @@ def solve_fdm(ul, signal, threshold=1e-8, gen_u2=False):
         vr[:, l] *= 1.0/sqrt(norm)
 
     #assert abs(dot(dot(vr[:, 0], U0), vr[:, 0]) - 1) < 1e-3, "incorrect normalization"
+    if gen_u2:
+        errs = generate_rel_err(alpha[idx]/beta[idx], vr, U2) 
+
     A = gen_amplitudes(vr, g0)
-    idx = where(abs(A) > threshold)
-    return eigs[idx].squeeze(), A[idx].squeeze()
+
+    if gen_u2:
+        idx = where((abs(A) > amplitude_threshold) & (errs < relerr_threshold))
+        return eigs[idx].squeeze(), A[idx].squeeze(), errs[idx]
+    else:
+        idx = where((abs(A) > amplitude_threshold))
+        return eigs[idx].squeeze(), A[idx].squeeze()
+        
 

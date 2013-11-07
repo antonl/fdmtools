@@ -78,7 +78,7 @@ void fdm_ctx::generate_U()
 
         cx_vec zj_inv_m = cx_vec(J, fill::ones);
 
-        generate_cache(K);
+        generate_cache(K - 1);
 
         for(int k = 0; k < K; ++k) {
             for(int i = 0; i < J; ++i) {

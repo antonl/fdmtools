@@ -1,6 +1,6 @@
-from __future__ import division
+from __future__ import division, print_function
 from numpy import (zeros, zeros_like, ones_like, 
-    complex128, dot, where, sqrt, log, pi, abs)
+    complex128, dot, argwhere, where, sqrt, log, pi, abs)
 from scipy.linalg.lapack import zggev
 
 __all__ = ['generate_u', 'gen_amplitudes', 'solve_fdm'] 
@@ -29,9 +29,9 @@ def generate_u(ul, signal, gen_u2=False, p=1): # generate G0, G1
     assert (len(ul.shape) == 1 and len(signal.shape) == 1), "expected 1d vectors"
     N = signal.shape[0] # signal length
     L = ul.shape[0] # number of basis functions
-    K = int(N /2. - p)
+    K = int((N - 1 - p)/2.)
 
-    assert (2*K + p <= N), "choose higher p, need more signal points"
+    assert (2*K + p < N), "choose higher p, need more signal points"
 
     if gen_u2:
         assert p >= 2, "choose higher p, U2 requires p=2"
@@ -110,26 +110,32 @@ def gen_amplitudes(B, g0):
     return amps
 
 def solve_fdm(ul, signal, threshold=1e-5):
-    U0, U1, g0, U2 = generate_u(ul, signal, p=2, gen_u2=True)
+    SMALL = 1e-14
+    LARGE = 1e+14
+
+    U0, U1, g0 = generate_u(ul, signal, p=2, gen_u2=False)
     alpha,beta,vl,vr,work,info = zggev(U1, U0, compute_vl=False, compute_vr=True)
 
     assert info == 0, "zggev failed"
     
     # remove zero or infinite eigenvalues
-    idx = where((abs(alpha) > 1e-14) & (abs(beta) > 1e-14))
+    idx = where((abs(alpha) < LARGE) & (abs(beta) > SMALL))[0]
     eigs = (log(alpha[idx]) - log(beta[idx]))/(-1j*2*pi)
 
-    print("idx: ", idx)
+    print("idx_count: ", idx)
+    print("idx_shape: ", idx.shape)
+
+    not_idx = argwhere((abs(alpha) > LARGE) | (abs(beta) < SMALL))
+    print("!idx: ", not_idx)
+    print("vals at !idx: ", alpha[not_idx], " ", beta[not_idx])
 
     vr = vr[:, idx]
-    g0 = g0[idx]
-    U0 = U0[idx, :]
 
     print("vr_shape: ", vr.shape)
     print("g0_shape: ", g0.shape)
     print("U0_shape: ", U0.shape)
     
-    for l in xrange(vr.shape[0]):
+    for l in xrange(vr.shape[1]):
         # rescale vectors
         norm = dot(vr[:, l], dot(U0, vr[:, l]))
         vr[:, l] *= 1.0/sqrt(norm)

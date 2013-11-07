@@ -22,14 +22,19 @@ def accurate_pow(z, n):
             res *= z
         return res
 
-def generate_u(ul, signal, gen_u2=False, p=1): # generate G0, G1
+def generate_u(ul, signal, gen_u2=False): # generate G0, G1
     '''generate $U^0$ and $U^1$ matricies required for the method
     '''
     NPOW = 8
     assert (len(ul.shape) == 1 and len(signal.shape) == 1), "expected 1d vectors"
+
+    if gen_u2: p = 2
+    else: p = 1
+
     N = signal.shape[0] # signal length
     L = ul.shape[0] # number of basis functions
     K = int((N - 1 - p)/2.)
+
 
     assert (2*K + p < N), "choose higher p, need more signal points"
 
@@ -109,37 +114,39 @@ def gen_amplitudes(B, g0):
         amps[n] = dot(B[:, n], g0)**2
     return amps
 
-def solve_fdm(ul, signal, threshold=1e-5):
+def solve_fdm(ul, signal, threshold=1e-8, gen_u2=False):
+    # TODO: actually these numbers are related to condition number 
+    # from ZGGEV, so I can check spuriousness that way too
     SMALL = 1e-14
     LARGE = 1e+14
 
-    U0, U1, g0 = generate_u(ul, signal, p=2, gen_u2=False)
+    if gen_u2:
+        U0, U1, g0, U2 = generate_u(ul, signal, gen_u2=True)
+    else:
+        U0, U1, g0 = generate_u(ul, signal, gen_u2=False)
+
     alpha,beta,vl,vr,work,info = zggev(U1, U0, compute_vl=False, compute_vr=True)
 
-    assert info == 0, "zggev failed"
+    if info != 0:
+        print("zggev failed with code ", info)
     
     # remove zero or infinite eigenvalues
     idx = where((abs(alpha) < LARGE) & (abs(beta) > SMALL))[0]
     eigs = (log(alpha[idx]) - log(beta[idx]))/(-1j*2*pi)
 
-    print("idx_count: ", idx)
-    print("idx_shape: ", idx.shape)
-
-    not_idx = argwhere((abs(alpha) > LARGE) | (abs(beta) < SMALL))
-    print("!idx: ", not_idx)
-    print("vals at !idx: ", alpha[not_idx], " ", beta[not_idx])
-
+    if idx.shape[0] != alpha.shape[0]:
+        print("there were {:d} singular values removed" \
+            .format(alpha.shape[0] - idx.shape[0]))
+    
     vr = vr[:, idx]
 
-    print("vr_shape: ", vr.shape)
-    print("g0_shape: ", g0.shape)
-    print("U0_shape: ", U0.shape)
-    
     for l in xrange(vr.shape[1]):
         # rescale vectors
         norm = dot(vr[:, l], dot(U0, vr[:, l]))
         vr[:, l] *= 1.0/sqrt(norm)
+
     #assert abs(dot(dot(vr[:, 0], U0), vr[:, 0]) - 1) < 1e-3, "incorrect normalization"
     A = gen_amplitudes(vr, g0)
     idx = where(abs(A) > threshold)
     return eigs[idx].squeeze(), A[idx].squeeze()
+

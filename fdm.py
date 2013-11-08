@@ -1,9 +1,12 @@
 from __future__ import division, print_function
 from numpy import (zeros, zeros_like, ones_like, 
-    complex128, float64, dot, argwhere, where, sqrt, log, pi, abs)
+    complex128, float64, dot, argwhere, where, sqrt, log, pi, abs,
+    arange, exp, linspace)
 from scipy.linalg.lapack import zggev
+import itertools as it
 
-__all__ = ['generate_u', 'gen_amplitudes', 'solve_fdm'] 
+__all__ = ['generate_u', 'gen_amplitudes', 'solve_fdm', 'make_lorenzian', 
+        'make_basis'] 
 
 def accurate_pow(z, n):
     '''perform fewer multiplications to calculate an integer power
@@ -128,6 +131,32 @@ def generate_rel_err(eigs, vr, u2):
 
     return rel_err
 
+def make_basis(fmin, fmax, L=None, T=None, dt=1.0, tweak=0.1):
+    '''generate a basis list with equally-spaced eigenfrequencies in the
+    interval [fmin, fmax]
+
+    tweak parameter notes the fractional increase in the number of basis
+    functions from the standard estimate $(N dt / 4 \pi) * (fmax-fmin)$
+    '''
+    assert fmax > fmin, "fmax must be larger than fmin"
+    assert (2*pi*fmax*dt < pi), "Nyquist criterion violated" # not quite true
+
+    rho = 1.0 + tweak # spectral density. 1 corresponds to Nyquist
+
+    if L is None:
+        # calculate average density from time-bandwidth product
+        assert T is not None, "must specify total length for L calculation"
+
+        N = int(T/dt)
+        L = int(N/(0.5/T*2*pi*(fmax-fmin)*dt))
+        print("Using ", L, " basis functions")
+        print("That's ", L/N, " spectral density")
+        assert L > 1, "change frequency window to increase number of basis \
+        functions"
+
+    ul = exp(-1j*2*pi*dt*linspace(fmin, fmax, L))
+    return ul
+
 def solve_fdm(ul, signal, amplitude_threshold=1e-8, relerr_threshold=1e-8, 
         gen_u2=False):
 
@@ -173,5 +202,16 @@ def solve_fdm(ul, signal, amplitude_threshold=1e-8, relerr_threshold=1e-8,
     else:
         idx = where((abs(A) > amplitude_threshold))
         return eigs[idx].squeeze(), A[idx].squeeze()
-        
+
+def make_lorenzian(N, amplitudes, poles, dt=1.):
+    n = arange(N)
+    signal = zeros((N,), dtype=complex128)
+
+    try:
+        for a,f in it.izip(amplitudes, poles):
+            signal += a*exp(-1j*2*pi*f*dt*n)
+    except TypeError:
+        signal = amplitudes*exp(-1j*2*pi*poles*dt*n)
+    
+    return signal
 

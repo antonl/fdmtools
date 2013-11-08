@@ -59,6 +59,7 @@ static cmplx cpow_i(cmplx c, int n)
 }
 
 
+
 inline void fdm_ctx::generate_cache(unsigned int M) 
     {
         for(int i = 0; i < zj.n_elem; i++) {
@@ -123,6 +124,13 @@ void fdm_ctx::generate_U()
 pair<cx_vec, cx_mat> fdm_ctx::get_harminv_U(double fmin, double fmax) {
     harminv_data dat = harminv_data_create(signal.n_elem, signal.memptr(), 
         fmin, fmax, J);
+
+    //harminv_solve_once(dat);
+
+    //cx_double *a = harminv_compute_amplitudes(dat);
+
+    //cx_vec amps(a, harminv_get_num_freqs(dat));
+
     cx_mat nU0(dat->U0, J, J);
     cx_vec z(dat->z, J);
     cx_vec sig(dat->c, signal.n_elem);
@@ -132,6 +140,7 @@ pair<cx_vec, cx_mat> fdm_ctx::get_harminv_U(double fmin, double fmax) {
     return pair<cx_vec, cx_mat>(z, nU0);
 }
 
+/*
 void fdm_ctx::reduce_dimension(double threshold) {
     // Run svd on U0 and truncate to threshold
     if(threshold >= 1.0) throw runtime_error("threshold must be <= 1.0");
@@ -165,6 +174,7 @@ void fdm_ctx::reduce_dimension(double threshold) {
     U1 = S*U.submat(r, span::all)*U1*Vt.submat(span::all, r)*S;
     U2 = S*U.submat(r, span::all)*U2*Vt.submat(span::all, r)*S;
 }
+*/
 
 pair<cx_vec, cx_mat> fdm_ctx::find_eigenvectors(cx_mat X, double threshold) {
     cx_mat A(X); // copy of U0
@@ -208,6 +218,37 @@ pair<cx_vec, cx_mat> fdm_ctx::find_eigenvectors(cx_mat X, double threshold) {
 
     return ret;
 }
+
+void fdm_ctx::calc_amplitudes() {
+/*
+    J = solution.lambda.n_elem
+    amplitudes = vec(J);
+    
+    for (k = ku = 0; k < d->nfreqs; ++k) {
+        cx_double asum = 0;
+	    if (u_near_unity(d->u[k], d->n)) { // eq. 27 
+	        for (j = 0; j < d->J; ++j)
+	            asum += d->B[k * d->J + j] * Uu[j * nu + ku];
+	    asum /= d->K;
+	    ku++;
+	    } else { // eq. 26 
+             for (j = 0; j < d->J; ++j)
+              asum += d->B[k * d->J + j] * d->G0[j];
+        }
+        a[k] = asum * asum;
+    }
+    for(int i = 0; i < J; ++i) {
+        amplitudes(i) = 1.0/(J + 1) * dot(solution.second.col(i), U0.col(i)
+    }
+*/
+};
+
+void fdm_ctx::solve(double threshold) {
+    J = zj.n_elem;
+    solution = solve_ggev(threshold);
+    calc_amplitudes();
+}
+
 
 eigpair fdm_ctx::solve_once(double threshold) {
     eigpair vp = find_eigenvectors(U0, threshold);
@@ -270,6 +311,15 @@ eigpair fdm_ctx::test_ggev() {
     }
 
     return eigpair(lambda, V);
+}
+
+#define UNITY_THRESH 1e-4 /* FIXME? */
+
+/* true if UNITY_THRESH < |u|^n < 1/UNITY_THRESH. */
+static int u_near_unity(cmplx u, int n)
+{
+     double nlgabsu = n * log(cabs(u));
+     return (log(UNITY_THRESH) < nlgabsu && nlgabsu < -log(UNITY_THRESH));
 }
 
 eigpair fdm_ctx::solve_ggev(double threshold) {
@@ -337,7 +387,44 @@ eigpair fdm_ctx::solve_ggev(double threshold) {
     }
     */
 
-    cout << "Got " << nlambda.n_elem << " surviving eigenvalues" << endl;
+    //cout << "Got " << nlambda.n_elem << " surviving eigenvalues" << endl;
+
+    amplitudes = cx_vec(pass.n_elem);
+    
+    /*
+    for (k = ku = 0; k < d->nfreqs; ++k) {
+        cx_double asum = 0;
+	    if (u_near_unity(d->u[k], d->n)) { // eq. 27 
+	        for (j = 0; j < d->J; ++j)
+	            asum += d->B[k * d->J + j] * Uu[j * nu + ku];
+	    asum /= d->K;
+	    ku++;
+	    } else { // eq. 26 
+             for (j = 0; j < d->J; ++j)
+              asum += d->B[k * d->J + j] * d->G0[j];
+        }
+        a[k] = asum * asum;
+    }
+    */
+    unsigned int M = signal.n_elem/2 - 2; 
+
+    int j = 0;
+    for(auto i = pass.begin(); i < pass.end(); ++i) {
+        // as in harminv, check for close to unity
+        /*
+        // FIXME: This is completely wrong. must regenerate U0
+        amplitudes(j) = 1.0/(M+1) * dot(V.col(*i), U0.col(*i));
+        amplitudes(j) *= amplitudes(j);
+        */
+        cx_double sum = 0;
+        for(auto k = 0; k < J; ++k) {
+            sum += V(k, *i)*G0(k);
+        }
+        amplitudes(j) = sum*sum;
+        j++;
+    }
+    //J = nlambda.n_elem;
 
     return eigpair(nlambda, nV);
 }
+

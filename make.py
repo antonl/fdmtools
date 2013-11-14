@@ -1,5 +1,6 @@
 import os, sys
 from distutils.core import setup, Extension
+from Cython import cythonize
 
 support_dir = "/Users/aloukian/Documents/fdm/pycxx"
 

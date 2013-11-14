@@ -8,22 +8,25 @@ import itertools as it
 __all__ = ['generate_u', 'gen_amplitudes', 'solve_fdm', 'make_lorenzian', 
         'make_basis'] 
 
-def accurate_pow(z, n):
-    '''perform fewer multiplications to calculate an integer power
-    '''
-    assert int(n) == n, 'only integer powers supported'
-    if n < 0:
-        return 1.0/accurate_pow(z, -n)
-    else:
-        res = 1;
-        while n > 1:
-            if n % 2 == 1:
+try:
+    from _fdm import accurate_pow
+except ImportError:
+    def accurate_pow(z, n):
+        '''perform fewer multiplications to calculate an integer power
+        '''
+        assert int(n) == n, 'only integer powers supported'
+        if n < 0:
+            return 1.0/accurate_pow(z, -n)
+        else:
+            res = 1;
+            while n > 1:
+                if n % 2 == 1:
+                    res *= z
+                z *= z
+                n = n >> 1 # bitwise shift
+            if n > 0:
                 res *= z
-            z *= z
-            n = n >> 1 # bitwise shift
-        if n > 0:
-            res *= z
-        return res
+            return res
 
 def generate_u(ul, signal, gen_u2=False): # generate G0, G1
     '''generate $U^0$ and $U^1$ matricies required for the method
@@ -148,9 +151,11 @@ def make_basis(fmin, fmax, L=None, T=None, dt=1.0, tweak=0.1):
         assert T is not None, "must specify total length for L calculation"
 
         N = int(T/dt)
-        L = int(N/(0.5/T*2*pi*(fmax-fmin)*dt))
+        frac_freq = (0.5/T*2*pi*(fmax-fmin)*dt)
+        L = int(rho*N*frac_freq)
+        print("N = ", N, " sample points")
         print("Using ", L, " basis functions")
-        print("That's ", L/N, " spectral density")
+        print("That's ", L/(frac_freq*N), " spectral density")
         assert L > 1, "change frequency window to increase number of basis \
         functions"
 

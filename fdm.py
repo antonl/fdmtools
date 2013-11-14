@@ -123,7 +123,7 @@ def gen_amplitudes(B, g0):
 def generate_rel_err(eigs, vr, u2):
     assert eigs.shape[0] == vr.shape[0], \
         'number of eigvals and eigvecs must match'
-    assert vr.shape[0] == u2.shape[1], \
+    assert vr.shape[0] == u2.shape[0], \
         'number of eigvecs and U2 rows must be compatible'
 
     rel_err = zeros((eigs.shape[0],), dtype=float64)
@@ -153,9 +153,11 @@ def make_basis(fmin, fmax, L=None, T=None, dt=1.0, tweak=0.1):
         N = int(T/dt)
         frac_freq = (0.5/T*2*pi*(fmax-fmin)*dt)
         L = int(rho*N*frac_freq)
+        '''
         print("N = ", N, " sample points")
         print("Using ", L, " basis functions")
         print("That's ", L/(frac_freq*N), " spectral density")
+        '''
         assert L > 1, "change frequency window to increase number of basis \
         functions"
 

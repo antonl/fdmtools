@@ -9,7 +9,32 @@ __all__ = ['generate_u', 'gen_amplitudes', 'solve_fdm', 'make_lorenzian',
         'make_basis'] 
 
 try:
-    from _fdm import accurate_pow
+    #from _fdm import accurate_pow
+    import gmpy2 
+    from gmpy2 import mpz, mpc
+
+    gmpy2.get_context().precision = 100
+
+    def accurate_pow(z, n):
+        '''perform fewer multiplications to calculate an integer power
+        '''
+        assert int(n) == n, 'only integer powers supported'
+
+        if n < 0:
+            return 1.0/accurate_pow(z, -n)
+        else:
+            res = mpc('1')
+            z = mpc(z)
+
+            while n > 1:
+                if n % 2 == 1:
+                    res = gmpy2.mul(res, z)
+                z = gmpy2.square(z)
+                n = n >> 1 # bitwise shift
+            if n > 0:
+                res = gmpy2.mul(res, z)
+
+            return complex(res)
 except ImportError:
     def accurate_pow(z, n):
         '''perform fewer multiplications to calculate an integer power
@@ -142,7 +167,7 @@ def make_basis(fmin, fmax, L=None, T=None, dt=1.0, tweak=0.1):
     functions from the standard estimate $(N dt / 4 \pi) * (fmax-fmin)$
     '''
     assert fmax > fmin, "fmax must be larger than fmin"
-    assert (2*pi*fmax*dt < pi), "Nyquist criterion violated" # not quite true
+    assert (2*pi*fmax*dt < pi), "(2*Nyquist) criterion violated" # not quite true
 
     rho = 1.0 + tweak # spectral density. 1 corresponds to Nyquist
 
